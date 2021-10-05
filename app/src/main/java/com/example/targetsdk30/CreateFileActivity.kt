@@ -11,8 +11,11 @@ import android.provider.MediaStore
 import android.os.Environment
 
 import android.content.ContentValues
+import android.database.Cursor
 import android.net.Uri
+import android.text.TextUtils
 import android.util.Log
+import android.widget.TextView
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
@@ -35,26 +38,33 @@ class CreateFileActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_create_file)
         val edittext = findViewById<TextInputEditText>(R.id.textinput)
+        val textview = findViewById<TextView>(R.id.textview)
         val okButton = findViewById<Button>(R.id.okbutton)
-        listFiles(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)!!)
-        okButton.setOnClickListener { createFileInDirectory(edittext) }
+       // listFiles(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)!!)
+        okButton.setOnClickListener { createFileInDirectory(edittext, textview) }
     }
 
-    private fun createFileInDirectory(edittext: TextInputEditText) {
+    private fun createFileInDirectory(edittext: TextInputEditText, textView: TextView) {
         val filename = edittext.text.toString()
+        if (filename.contains("*") || TextUtils.isEmpty(filename)) {
+            textView.setText("File name cannot be empty or cannot contain special characters.")
+            return;
+        } else if (isFileAlreadyExists(filename)) {
+          textView.setText("File already exists")
+        }
         try {
             //Capindex creation
             val values = ContentValues()
             values.put(
-                MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.Files.FileColumns.DISPLAY_NAME,
                 filename
             ) //file name
             values.put(
-                MediaStore.MediaColumns.MIME_TYPE,
+                MediaStore.Files.FileColumns.MIME_TYPE,
                 "*/*"
             ) //file extension, will automatically add to file
             values.put(
-                MediaStore.MediaColumns.RELATIVE_PATH,
+                MediaStore.Files.FileColumns.RELATIVE_PATH,
                 Environment.DIRECTORY_DOWNLOADS + "/SUS/"
             ) //end "/" is not mandatory
             val uri: Uri? = contentResolver.insert(
@@ -70,15 +80,15 @@ class CreateFileActivity : AppCompatActivity() {
             //Uplink log creation
             val uplinkValues = ContentValues()
             uplinkValues.put(
-                MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.Files.FileColumns.DISPLAY_NAME,
                 "uplink.log"
             ) //file name
             uplinkValues.put(
-                MediaStore.MediaColumns.MIME_TYPE,
+                MediaStore.Files.FileColumns.MIME_TYPE,
                 "*/*"
             ) //file extension, will automatically add to file
             uplinkValues.put(
-                MediaStore.MediaColumns.RELATIVE_PATH,
+                MediaStore.Files.FileColumns.RELATIVE_PATH,
                 Environment.DIRECTORY_DOWNLOADS + "/SUS/"
             ) //end "/" is not mandatory
             val uriUplink: Uri? = contentResolver.insert(
@@ -93,6 +103,24 @@ class CreateFileActivity : AppCompatActivity() {
         } catch (e: IOException) {
             Toast.makeText(this, "Fail to create file", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun isFileAlreadyExists(fileName: String): Boolean {
+        val contentUri = MediaStore.Files.getContentUri("external")
+        val selection =
+            MediaStore.Files.FileColumns.RELATIVE_PATH + "= ? and " + MediaStore.Files.FileColumns.DISPLAY_NAME + "= ? "
+        val selectionArgs = arrayOf(Environment.DIRECTORY_DOWNLOADS + "/SUS/", fileName)
+        val cursor = contentResolver.query(contentUri, null, selection, selectionArgs, null)
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                val file: String =
+                    cursor.getString(cursor.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME));
+                if (file.equals(fileName)) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     private fun listFiles(directory: File) {
