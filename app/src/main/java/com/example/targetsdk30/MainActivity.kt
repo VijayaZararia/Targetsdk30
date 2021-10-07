@@ -24,8 +24,14 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 val intent  = Intent(this,CreateFileActivity::class.java)
                 startActivity(intent)
             }
-            R.id.button2 -> print("x == 2")
-            R.id.button3 -> print("x == 2")
+            R.id.button2 -> {
+                val intent  = Intent(this,UpdateFileActivity::class.java)
+                startActivity(intent)
+            }
+            R.id.button3 -> {
+                val intent  = Intent(this,ReadFileActivity::class.java)
+                startActivity(intent)
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.example.targetsdk30
 
+import android.content.ContentUris
 import android.os.Bundle
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
@@ -40,7 +41,7 @@ class CreateFileActivity : AppCompatActivity() {
         val edittext = findViewById<TextInputEditText>(R.id.textinput)
         val textview = findViewById<TextView>(R.id.textview)
         val okButton = findViewById<Button>(R.id.okbutton)
-       // listFiles(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)!!)
+         listFiles()
         okButton.setOnClickListener { createFileInDirectory(edittext, textview) }
     }
 
@@ -50,7 +51,10 @@ class CreateFileActivity : AppCompatActivity() {
             textView.setText("File name cannot be empty or cannot contain special characters.")
             return;
         } else if (isFileAlreadyExists(filename)) {
-          textView.setText("File already exists")
+            textView.setText("File already exists")
+            return;
+        } else {
+            textView.setText("")
         }
         try {
             //Capindex creation
@@ -71,17 +75,33 @@ class CreateFileActivity : AppCompatActivity() {
                 MediaStore.Files.getContentUri("external"),
                 values
             ) //important!
-            val outputStream: OutputStream? = contentResolver.openOutputStream(uri!!)
+            val outputStream: OutputStream? = contentResolver.openOutputStream(uri!!,)
             outputStream!!.write(fileContent.toByteArray())
             outputStream.close()
             Toast.makeText(this, "File created successfully", Toast.LENGTH_SHORT)
                 .show()
 
             //Uplink log creation
+            if(isFileAlreadyExists("uplinks.log")){
+                //Deleting uplink log file from the location SUS
+                val contentUri = MediaStore.Files.getContentUri("external")
+                val selection =
+                    MediaStore.Files.FileColumns.RELATIVE_PATH + "= ? and " + MediaStore.Files.FileColumns.DISPLAY_NAME + "= ? "
+                val selectionArgs = arrayOf(Environment.DIRECTORY_DOWNLOADS + "/SUS/", "uplinks.log")
+                val cursor = contentResolver.query(contentUri, null, selection, selectionArgs, null)
+                var uri: Uri? = null
+                if (cursor != null && cursor.moveToFirst()) {
+                    val id: Long = cursor.getLong(cursor.getColumnIndex(MediaStore.Files.FileColumns._ID));
+                    uri = ContentUris.withAppendedId(contentUri, id)
+                }
+                contentResolver.delete(uri!!,null,null)
+            }
+
+            //Recreating uplink log file in the location SUS
             val uplinkValues = ContentValues()
             uplinkValues.put(
                 MediaStore.Files.FileColumns.DISPLAY_NAME,
-                "uplink.log"
+                "uplinks.log"
             ) //file name
             uplinkValues.put(
                 MediaStore.Files.FileColumns.MIME_TYPE,
@@ -123,7 +143,8 @@ class CreateFileActivity : AppCompatActivity() {
         return false
     }
 
-    private fun listFiles(directory: File) {
+    private fun listFiles() {
+        val directory = Environment.getExternalStorageDirectory()
         val files = directory.listFiles()
         if (files != null) {
             for (file in files) {
